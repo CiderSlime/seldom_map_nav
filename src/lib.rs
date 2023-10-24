@@ -24,7 +24,7 @@ pub mod prelude {
     pub use crate::mesh::{Navability, Navmeshes};
     #[cfg(feature = "bevy")]
     pub use crate::{
-        nav::{Nav, NavBundle, PathTarget, Pathfind},
+        nav::{Nav, NavBundle, PathTarget, Pathfind, Collider},
         plugin::{map_nav_plugin, MapNavPlugin},
     };
     pub use navmesh::{NavPathMode, NavQuery};

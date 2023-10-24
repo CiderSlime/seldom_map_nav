@@ -43,7 +43,7 @@ impl Navmeshes {
         let mut navmeshes = Vec::with_capacity(clearances.len());
         for clearance in clearances {
             navmeshes.push(NavmeshEntry {
-                navmesh: generate_navmesh(map_size, tile_size, &navability, clearance)?,
+                navmesh: generate_navmesh(map_size, tile_size, &navability, clearance.clone())?,
                 clearance,
             });
         }
