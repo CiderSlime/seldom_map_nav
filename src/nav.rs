@@ -1,60 +1,12 @@
 use std::{collections::VecDeque, error::Error, time::Duration};
-use bevy_spatial::{AutomaticUpdate, SpatialAccess, kdtree::KDTree2, SpatialStructure};
+use bevy_spatial::{AutomaticUpdate, SpatialStructure};
 
 use mint::Vector3;
 use navmesh::{NavPathMode, NavQuery};
 
 use crate::{prelude::*, set::MapNavSet};
+use crate::forces::{KDTree, apply_forces};
 
-
-/// Component required for applying steering forces
-#[derive(Component, Default)]
-pub struct Collider;
-
-type KDTree = KDTree2<Collider>;
-
-const MAX_SEE_AHEAD: f32 = 4.2;
-const MAX_AVOID_FORCE: f32 = 0.88;
-const COLLISION_RADIUS: f32 = 48.;
-
-fn find_closest_obstacle(
-    self_id: Entity,
-    self_pos: Vec2,
-    ahead: Vec2,
-    ahead2: Vec2,
-    tree: &Res<KDTree>
-) -> Option<Vec2> {
-    let neighbours = tree.k_nearest_neighbour(ahead, 2);
-
-    if let Some((obstacle_pos, entity)) = neighbours.get(1) {
-        if let Some(entity) = entity{
-            if entity != &self_id && (
-                obstacle_pos.distance(ahead) <= COLLISION_RADIUS
-                // || obstacle_pos.distance(ahead2) <= COLLISION_RADIUS
-            ) {
-                return Some(*obstacle_pos)
-            }
-        }
-    }
-    None
-}
-
-fn collision_avoidance(
-    self_id: Entity,
-    desired_pos: Vec2,
-    current_pos: Vec2,
-    tree: &Res<KDTree>
-) -> Vec2 {
-    let desired_velocity = (desired_pos - current_pos).normalize();
-
-    let ahead_mult = desired_velocity * MAX_SEE_AHEAD;
-    let ahead = current_pos + ahead_mult;
-    let ahead2 = current_pos + ahead_mult * 0.5;
-
-    if let Some(obstacle) = find_closest_obstacle(self_id, current_pos, ahead, ahead2, tree) {
-        (ahead - obstacle).normalize()
-    } else { Vec2::ZERO }
-}
 
 pub(crate) fn nav_plugin<P: Position2<Position = Vec2>>(app: &mut App) {
     app
@@ -251,26 +203,15 @@ fn nav<P: Position2<Position = Vec2>>(
             continue;
         }
 
-        let old_pos = position.get();
-        let mut pos = old_pos;
+        let pos = position.get();
 
-        let mut travel_dist = nav.speed * time.delta_seconds();
-        let mut dest;
-        let mut dest_dist;
+        let travel_dist = nav.speed * time.delta_seconds();
+        let mut dest = *pathfind.path.front().unwrap();
 
-        // consume as much path points as distance allows
-        // consumes 0 points if target is too far
-        while travel_dist >= {
-            dest = *pathfind.path.front().unwrap();
-            dest_dist = (dest - pos).length();
-            dest_dist
-        } {
-            pos = dest;
-            travel_dist -= dest_dist;
-
+        if pos.distance(dest) < 10. {
             pathfind.path.pop_front();
-            if pathfind.path.is_empty() {
-                break;
+            if !pathfind.path.is_empty() {
+                dest = *pathfind.path.front().unwrap();
             }
         }
 
@@ -278,19 +219,16 @@ fn nav<P: Position2<Position = Vec2>>(
             nav.done = true;
             #[cfg(feature = "state")]
             commands.entity(entity).insert(Done::Success);
-        } else {
-            let delta = (dest - pos).normalize() * travel_dist;
-            pos += delta;
         }
 
-        pos += collision_avoidance(
+        let velocity = apply_forces(
             entity,
+            dest,
             pos,
-            old_pos,
             &tree
-        ) * travel_dist * MAX_AVOID_FORCE;
+        );
 
         // next frame position
-        position.set(pos);
+        position.set(pos + velocity * travel_dist);
     }
 }

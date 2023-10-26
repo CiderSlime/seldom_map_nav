@@ -4,6 +4,7 @@
 #![warn(missing_docs)]
 
 pub mod mesh;
+pub mod forces;
 #[cfg(feature = "bevy")]
 mod nav;
 #[cfg(feature = "bevy")]
@@ -24,7 +25,8 @@ pub mod prelude {
     pub use crate::mesh::{Navability, Navmeshes};
     #[cfg(feature = "bevy")]
     pub use crate::{
-        nav::{Nav, NavBundle, PathTarget, Pathfind, Collider},
+        nav::{Nav, NavBundle, PathTarget, Pathfind},
+        forces::Collider,
         plugin::{map_nav_plugin, MapNavPlugin},
     };
     pub use navmesh::{NavPathMode, NavQuery};

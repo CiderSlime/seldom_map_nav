@@ -1,6 +1,8 @@
 // In this game, the player navigates to wherever you click
 
+use std::time::Duration;
 use bevy::{prelude::*, sprite::Anchor};
+use bevy::prelude::Keyframes::Scale;
 use bevy::sprite::MaterialMesh2dBundle;
 
 use rand::{thread_rng, Rng};
@@ -45,12 +47,17 @@ fn init(
     // Spawn images for the tiles
     let tile_image = asset_server.load("tile.png");
     let mut player_pos = default();
-    let mut colliders = [
-        // (10, 10),
-        // (10, 11),
-        // (10, 12),
-        // (10, 13),
-        (10, 14)
+    let colliders = [
+        (10, 10),
+        (10, 11),
+        (10, 12),
+        (10, 13),
+        (10, 14),
+        (11, 10),
+        (11, 11),
+        (11, 12),
+        (11, 13),
+        (11, 14),
     ];
     let uvec_pos = |x: u32, y: u32| UVec2::new(x, y).as_vec2() * TILE_SIZE;
     for x in 0..MAP_SIZE.x {
@@ -75,20 +82,20 @@ fn init(
     // Here's the important bit:
 
     // Spawn the tilemap with a `Navmeshes` component
-    commands
-        .spawn(Navmeshes::generate(MAP_SIZE, TILE_SIZE, navability, [PLAYER_CLEARANCE]).unwrap());
+    let navmeshes = commands
+        .spawn(Navmeshes::generate(MAP_SIZE, TILE_SIZE, navability, [PLAYER_CLEARANCE]).unwrap()).id();
 
     // Spawn the player component. A position component is necessary. We will add `NavBundle`
     // later.
     let player = commands.spawn((
         SpriteBundle {
-            transform: Transform::from_translation((uvec_pos(12, 12) + TILE_SIZE / 2.).extend(1.)),
+            transform: Transform::from_translation((uvec_pos(14, 14) + TILE_SIZE / 2.).extend(1.)),
             texture: asset_server.load("player.png"),
             ..default()
         },
         Player,
         Collider
-    ));
+    )).id();
     let circle_mesh = meshes.add(shape::Circle::new(50.).into());
     let material = materials.add(ColorMaterial::from(Color::PURPLE));
 
@@ -96,12 +103,27 @@ fn init(
     for collider in colliders {
         commands.spawn((
             MaterialMesh2dBundle {
-                transform: Transform::from_translation((uvec_pos(collider.0, collider.1) + TILE_SIZE / 2.).extend(1.)),
+                transform: Transform{
+                    translation: (uvec_pos(collider.0, collider.1) + TILE_SIZE / 2.).extend(1.),
+                    scale: Vec3::splat(0.25),
+                    ..default()
+                },
                 mesh: circle_mesh.clone().into(),
                 material: material.clone(),
                 ..default()
             },
-            Collider
+            Collider,
+            NavBundle {
+                pathfind: Pathfind::new(
+                    navmeshes,
+                    PLAYER_CLEARANCE,
+                    Some(Duration::from_secs_f32(1.0)),
+                    PathTarget::Dynamic(player),
+                    NavQuery::Accuracy,
+                    NavPathMode::Accuracy,
+                ),
+                nav: Nav::new(200.),
+            }
         ));
     }
 }
