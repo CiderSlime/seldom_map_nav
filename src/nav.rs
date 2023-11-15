@@ -85,12 +85,14 @@ pub struct Nav {
     pub speed: f32,
     /// Whether the entity has navigated to the destination
     pub done: bool,
+    /// current velocity
+    pub velocity: Vec2
 }
 
 impl Nav {
     /// Create a `Nav`
     pub fn new(speed: f32) -> Self {
-        Self { speed, done: false }
+        Self { speed, done: false , velocity: Vec2::ZERO}
     }
 }
 
@@ -221,14 +223,15 @@ fn nav<P: Position2<Position = Vec2>>(
             commands.entity(entity).insert(Done::Success);
         }
 
-        let velocity = apply_forces(
+        nav.velocity = apply_forces(
             entity,
             dest,
             pos,
+            nav.velocity,
             &tree
         );
 
         // next frame position
-        position.set(pos + velocity * travel_dist);
+        position.set(pos + nav.velocity * travel_dist);
     }
 }

@@ -2,10 +2,7 @@
 
 use std::time::Duration;
 use bevy::{prelude::*, sprite::Anchor};
-use bevy::prelude::Keyframes::Scale;
 use bevy::sprite::MaterialMesh2dBundle;
-
-use rand::{thread_rng, Rng};
 use seldom_map_nav::prelude::*;
 
 fn main() {
@@ -18,7 +15,10 @@ fn main() {
         // The type parameter is the position component that you use
         .init_resource::<CursorPos>()
         .add_systems(Startup, init)
-        .add_systems(Update, (update_cursor_pos, move_player).chain())
+        .add_systems(Update, (
+            (update_cursor_pos, move_player).chain(),
+            move_chasers
+        ))
         .run();
 }
 
@@ -39,7 +39,6 @@ fn init(
         ..default()
     });
 
-    let mut rng = thread_rng();
     // Randomly generate the tilemap
     let tilemap = [(); (MAP_SIZE.x * MAP_SIZE.y) as usize].map(|_| Navability::Navable);
     let navability = |pos: UVec2| tilemap[(pos.y * MAP_SIZE.x + pos.x) as usize];
@@ -113,17 +112,6 @@ fn init(
                 ..default()
             },
             Collider,
-            NavBundle {
-                pathfind: Pathfind::new(
-                    navmeshes,
-                    PLAYER_CLEARANCE,
-                    Some(Duration::from_secs_f32(1.0)),
-                    PathTarget::Dynamic(player),
-                    NavQuery::Accuracy,
-                    NavPathMode::Accuracy,
-                ),
-                nav: Nav::new(200.),
-            }
         ));
     }
 }
@@ -157,7 +145,38 @@ fn move_player(
     }
 }
 
-// The code after this comment is not related to `seldom_map_nav`
+fn move_chasers (
+    mut commands: Commands,
+    chasers: Query<(Entity, &Transform, Option<&Pathfind>), (With<Collider>, Without<Player>)>,
+    players: Query<(Entity, &Transform), With<Player>>,
+    navmesheses: Query<Entity, With<Navmeshes>>,
+) {
+    for (chaser, transform, pathfind) in chasers.iter() {
+        let (player, player_transform) = players.single();
+        if transform.translation.truncate()
+            .distance(player_transform.translation.truncate()) <= 60. {
+            if pathfind.is_some() {
+                commands.entity(chaser).remove::<Pathfind>();
+            }
+        } else {
+            if pathfind.is_none() {
+                commands.entity(chaser).insert(
+                    NavBundle {
+                        pathfind: Pathfind::new(
+                            navmesheses.single(),
+                            PLAYER_CLEARANCE,
+                            Some(Duration::from_secs_f32(1.0)),
+                            PathTarget::Dynamic(player),
+                            NavQuery::Accuracy,
+                            NavPathMode::Accuracy,
+                        ),
+                        nav: Nav::new(120.),
+                    }
+                );
+            }
+        }
+    }
+}
 
 #[derive(Component)]
 struct Player;
