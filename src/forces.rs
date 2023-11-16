@@ -42,11 +42,11 @@ pub fn apply_forces(
     //     &tree
     // );
 
-    steering += separation_force(
-        self_id,
-        current_pos,
-        &tree
-    );
+    // steering += separation_force(
+    //     self_id,
+    //     current_pos,
+    //     &tree
+    // );
 
     if steering != Vec2::ZERO {
         steering = steering.normalize_or_zero() * MAX_FORCE
@@ -58,7 +58,7 @@ pub fn apply_forces(
         current_velocity,
         tree
     ) {
-        let mut brake = -current_velocity + steering * -0.8;
+        let mut brake = -current_velocity + steering * -0.95;
         brake += separation_force(
             self_id,
             current_pos,
